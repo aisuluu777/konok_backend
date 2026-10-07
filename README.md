@@ -31,7 +31,17 @@ uv run uvicorn app.main:app --reload
 ## Docker
 
 Образ приложения — `backend/Dockerfile`. При старте контейнер применяет миграции
-и запускает API на порту 8000.
+и запускает API на порту 8000. Загруженные фото и видео хранятся в томе `/app/storage`.
+
+API вместе с PostgreSQL и Redis:
+
+```bash
+cd backend
+cp .env.example .env    # из .env берётся SECRET_KEY
+docker compose up -d api
+```
+
+Только API — когда БД и Redis работают отдельно:
 
 ```bash
 cd backend
@@ -39,9 +49,7 @@ docker build -t konok-backend .
 docker run -d -p 8000:8000 --env-file .env -v konok-storage:/app/storage konok-backend
 ```
 
-- В `.env` нужны `DATABASE_URL`, `REDIS_URL`, `SECRET_KEY`. Адреса БД и Redis должны быть
-  доступны из контейнера: `localhost` внутри контейнера — это сам контейнер.
-- Том `/app/storage` хранит загруженные фото и видео — без него они пропадут
-  при пересоздании контейнера.
+Здесь в `.env` нужны `DATABASE_URL`, `REDIS_URL`, `SECRET_KEY`, и адреса БД и Redis должны быть
+доступны из контейнера: `localhost` внутри контейнера — это сам контейнер.
 
 Claude Code запускать из корня `konok/`: настройки он берёт из `.claude/`.

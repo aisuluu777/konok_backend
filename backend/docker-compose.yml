@@ -1,7 +1,26 @@
-# Имя проекта в Docker (контейнеры, том pgdata) — не зависит от названия папки
+# Имя проекта в Docker (контейнеры, тома) — не зависит от названия папки
 name: konok-backend
 
 services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    # SECRET_KEY — из .env; БД и Redis внутри сети Docker доступны по имени сервиса
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+asyncpg://konok:konok@db:5432/konok
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - storage:/app/storage
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
   db:
     image: postgres:17
     environment:
@@ -40,3 +59,5 @@ services:
 
 volumes:
   pgdata:
+  # Загруженные фото и видео
+  storage:
