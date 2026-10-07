@@ -1,0 +1,19 @@
+# Claude Code: инструкции, план, агенты, хуки, настройки — для деплоя не нужны
+.claude/
+
+# Python: виртуальное окружение и кэши
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Секреты и загруженные пользователями файлы
+.env
+.env.local
+storage/
+
+# Настройки редакторов
+.idea/
+.vscode/

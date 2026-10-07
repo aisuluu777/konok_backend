@@ -1,0 +1,12 @@
+# Не попадает в образ: окружение и кэши, секреты, загруженные файлы, тесты, документация
+.venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.env
+.env.local
+storage
+tests
+docs
