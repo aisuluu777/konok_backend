@@ -54,8 +54,8 @@ async def logout(data: RefreshIn, redis: RedisDep) -> None:
 
 @auth_router.post("/phone/request-code", status_code=status.HTTP_202_ACCEPTED)
 async def request_phone_code(me: Me, session: Session, redis: RedisDep) -> OtpRequestedOut:
-    expires_in = await service.request_phone_code(session, redis, me.id)
-    return OtpRequestedOut(expires_in=expires_in)
+    code, expires_in = await service.request_phone_code(session, redis, me.id)
+    return OtpRequestedOut(code=code, expires_in=expires_in)
 
 
 @auth_router.post("/phone/verify")

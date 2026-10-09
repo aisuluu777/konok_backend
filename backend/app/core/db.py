@@ -22,7 +22,11 @@ SmallId = Annotated[int, Ge(1), Le(2**15 - 1)]  # SMALLSERIAL
 BigId = Annotated[int, Ge(1), Le(2**63 - 1)]  # BIGSERIAL
 
 
-engine: AsyncEngine = create_async_engine(get_settings().database_url, pool_pre_ping=True)
+# hide_parameters: значения параметров (хеш пароля, PIN) не попадают в текст ошибок БД —
+# его показывает админ-панель и пишут логи.
+engine: AsyncEngine = create_async_engine(
+    get_settings().database_url, pool_pre_ping=True, hide_parameters=True
+)
 SessionFactory = async_sessionmaker(engine, expire_on_commit=False)
 
 

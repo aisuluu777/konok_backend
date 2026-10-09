@@ -218,6 +218,7 @@ async def get_booking(
 async def check_in(session: AsyncSession, user_id: int, booking_id: int, pin: str) -> Booking:
     """Заселение / передача машины (R-23): confirmed → in_progress по PIN гостя.
 
+    PIN принимается с дня заезда до дня выезда (start_date <= сегодня < end_date).
     Верный PIN у stay запускает выплату хозяину (R-35); у аренды машины выплата — при
     completed. Неверный PIN только увеличивает счётчик, без блокировки.
     """
@@ -230,6 +231,8 @@ async def check_in(session: AsyncSession, user_id: int, booking_id: int, pin: st
         raise NotFoundError("Booking not found")
     if booking.status != BookingStatus.CONFIRMED:
         raise ConflictError("Booking is not awaiting check-in")
+    if not booking.start_date <= today_bishkek() < booking.end_date:
+        raise ConflictError("Check-in is possible only from start date until end date")
 
     guest_pin = await session.scalar(select(User.checkin_pin).where(User.id == booking.guest_id))
     if guest_pin is None or not hmac.compare_digest(guest_pin, pin):
@@ -260,6 +263,7 @@ async def cancel_booking(
     """Отмена гостем (R-22, R-34): hold или confirmed → cancelled_by_guest, полный возврат.
 
     После заселения (in_progress) выплата хозяину уже проведена — отмена не поддерживается.
+    С дня выезда (end_date) отмены нет: бронь закрывается как completed / no_show (R-24).
     Хозяин / владелец машины отменить не может — 403 (R-22).
     """
     booking = await session.scalar(
@@ -273,6 +277,8 @@ async def cancel_booking(
         raise NotFoundError("Booking not found")
     if booking.status not in (BookingStatus.HOLD, BookingStatus.CONFIRMED):
         raise ConflictError("Booking can no longer be cancelled")
+    if today_bishkek() >= booking.end_date:
+        raise ConflictError("Booking period has ended")
 
     now: datetime = await session.scalar(select(func.now()))  # type: ignore[assignment]
     previous = booking.status

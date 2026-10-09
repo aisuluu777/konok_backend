@@ -64,6 +64,7 @@ class RegisterOut(TokenPair):
 
 
 class OtpRequestedOut(BaseModel):
+    code: str  # имитация: пока нет SMS-провайдера, код отдаётся в ответе
     expires_in: int
 
 

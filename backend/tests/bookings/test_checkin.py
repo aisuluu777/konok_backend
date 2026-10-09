@@ -42,8 +42,12 @@ async def give_pin(db_session: AsyncSession, user_id: int, pin: str = PIN) -> No
 async def confirmed_stay(
     db_session: AsyncSession, client: AsyncClient, **body: Any
 ) -> tuple[int, dict[str, str], dict[str, str], dict[str, Any]]:
-    """host_id, заголовки хозяина и гостя, оплаченная бронь; у гостя PIN = 123456."""
-    host_id, host_headers, headers, booking = await stay_hold(db_session, client, **body)
+    """host_id, заголовки хозяина и гостя, оплаченная бронь; у гостя PIN = 123456.
+
+    По умолчанию заезд сегодня — заселить можно сразу (R-23)."""
+    host_id, host_headers, headers, booking = await stay_hold(
+        db_session, client, **{"start": 0, **body}
+    )
     assert (await pay(client, headers, booking["id"], f"pay-{booking['id']}")).status_code == 200
     await give_pin(db_session, booking["guest_id"])
     return host_id, host_headers, headers, booking
@@ -70,7 +74,7 @@ async def test_requires_auth(client: AsyncClient) -> None:
 async def test_checkin_stay(client: AsyncClient, db_session: AsyncSession) -> None:
     """R-23, R-35: верный PIN → in_progress, выплата хозяину = сумма − комиссия, уже paid."""
     host_id, host_headers, headers, booking = await confirmed_stay(
-        db_session, client, price="1000.00", start=1, end=2
+        db_session, client, price="1000.00", start=0, end=1
     )
 
     response = await checkin(client, host_headers, booking["id"])
@@ -161,7 +165,7 @@ async def test_pin_format(client: AsyncClient, db_session: AsyncSession, pin: st
 async def test_payout_covers_paid_activities(client: AsyncClient, db_session: AsyncSession) -> None:
     """R-35: выплата — по всем succeeded-платежам брони, включая докупку до заселения."""
     _, host_headers, headers, booking = await confirmed_stay(
-        db_session, client, price="1000.00", start=1, end=2
+        db_session, client, price="1000.00", start=0, end=1
     )
     act = await create_activity(client, host_headers, activity_body(price_per_person="500.00"))
     await add(client, headers, booking["id"], [{"activity_id": act["id"], "persons": 1}])
@@ -179,7 +183,7 @@ async def test_late_activity_gets_separate_payout(
 ) -> None:
     """R-35: докупка после заселения → отдельная выплата сразу после оплаты."""
     host_id, host_headers, headers, booking = await confirmed_stay(
-        db_session, client, price="1000.00", start=1, end=2
+        db_session, client, price="1000.00", start=0, end=1
     )
     await checkin(client, host_headers, booking["id"])
     act = await create_activity(client, host_headers, activity_body(price_per_person="500.00"))
@@ -213,7 +217,7 @@ async def test_checkin_vehicle(client: AsyncClient, db_session: AsyncSession) ->
     """R-23, R-35: владелец машины вводит PIN → in_progress; выплата — только при completed."""
     owner, owner_headers, vehicle_id = await make_vehicle(db_session, client)
     guest, headers = await guest_with_headers(db_session, client)
-    booking = await rent(client, headers, rent_body(vehicle_id))
+    booking = await rent(client, headers, rent_body(vehicle_id, 0, 2))
     await pay(client, headers, booking["id"], "pay-vehicle")
     await give_pin(db_session, guest.id)
 

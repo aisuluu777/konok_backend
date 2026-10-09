@@ -2,11 +2,14 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.db import engine
 from app.core.errors import register_error_handlers
 from app.core.redis import redis_client
 from app.modules.activities.router import router as activities_router
+from app.modules.admin.panel import mount_admin_panel
 from app.modules.admin.router import admin_router, public_router
 from app.modules.bookings.router import router as bookings_router
 from app.modules.chat.router import router as chat_router
@@ -30,7 +33,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await engine.dispose()
 
 
-def create_app() -> FastAPI:
+def create_app(*, panel_engine: AsyncEngine = engine, panel_redis: Redis = redis_client) -> FastAPI:
+    """panel_engine / panel_redis — для админ-панели: ей не подходят dependency_overrides."""
     app = FastAPI(title="Konok API", lifespan=lifespan)
     register_error_handlers(app)
 
@@ -57,6 +61,7 @@ def create_app() -> FastAPI:
     app.include_router(chat_router)
     app.include_router(support_router)
     app.include_router(favorites_router)
+    mount_admin_panel(app, panel_engine, panel_redis)
     return app
 
 

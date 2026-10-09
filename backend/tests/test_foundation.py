@@ -2,12 +2,15 @@ import asyncio
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 
+import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from redis.asyncio import Redis
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.db import engine
 from app.core.errors import ConflictError, register_error_handlers
 
 
@@ -131,3 +134,18 @@ async def test_seeded_settings_restored_after_cleanup(db_session: AsyncSession) 
         "commission_rate": "0.1000",
         "kyc_resubmit_hours": "1",
     }
+
+
+async def test_db_errors_hide_parameters() -> None:
+    """Текст ошибки БД без значений параметров: SQLAdmin показывает его в форме (R-41 —
+    хеш пароля и PIN в панели не показываются), его же пишут логи."""
+    secret = "secret-password-hash"
+    try:
+        async with engine.connect() as conn:
+            with pytest.raises(DBAPIError) as exc_info:
+                await conn.execute(text("SELECT CAST(:value AS text), 1 / 0"), {"value": secret})
+    finally:
+        await engine.dispose()  # пул не переносится между event loop тестов
+
+    assert "division by zero" in str(exc_info.value)
+    assert secret not in str(exc_info.value)

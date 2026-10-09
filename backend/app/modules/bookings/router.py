@@ -64,13 +64,13 @@ async def complete_booking(booking_id: BigId, _: Staff, session: Session) -> Boo
     booking = await service.close_booking(session, booking_id, BookingStatus.COMPLETED)
     return BookingOut.model_validate(booking)
 
-
+# TODO: no-show - турист сам же не будет отмечать, поэтому только модератор/админ может закрыть бронь как no-show.
 @router.post("/bookings/{booking_id}/no-show")
 async def no_show_booking(booking_id: BigId, _: Staff, session: Session) -> BookingOut:
     booking = await service.close_booking(session, booking_id, BookingStatus.NO_SHOW)
     return BookingOut.model_validate(booking)
 
-
+# TODO: зачем лист свободных хозяев
 @router.get("/hosts/{host_id}/availability")
 async def get_availability(
     host_id: BigId, period: Annotated[AvailabilityQuery, Query()], session: Session

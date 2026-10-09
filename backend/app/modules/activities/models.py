@@ -21,8 +21,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.db import Base
 from app.modules.admin.models import Tag
 
+#TODO где поле название? как админ может добавить занятие без названия? Также думаю, что foreing key в этой таблице не нужен, так как занятие может быть удалено, а тег останется. Поэтому foreign key должен быть в таблице Activity на activity_tags.
 # Теги занятия: хозяин выбирает из админского списка tags (R-09).
-activity_tags = Table(
+c = Table(
     "activity_tags",
     Base.metadata,
     Column(

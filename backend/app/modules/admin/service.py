@@ -11,7 +11,7 @@ from app.core.errors import ConflictError, DomainError, NotFoundError
 from app.modules.admin.models import Place, Region, Setting, Tag
 from app.modules.admin.schemas import PlaceCreate, PlaceUpdate
 
-
+# зачем нужен этот класс?
 class SettingMissingError(Exception):
     """Ключа нет в settings — ошибка конфигурации (сид миграции), а не бизнес-ошибка."""
 

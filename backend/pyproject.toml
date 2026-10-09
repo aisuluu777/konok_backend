@@ -14,6 +14,7 @@ dependencies = [
     "argon2-cffi>=23.1",
     "pyjwt>=2.15.1",
     "python-multipart>=0.0.32",
+    "sqladmin[auth]>=0.32.0",
 ]
 
 [dependency-groups]
@@ -23,6 +24,7 @@ dev = [
     "httpx>=0.27",
     "ruff>=0.6",
     "mypy>=1.10",
+    "types-wtforms>=3.2.1.20260518",
 ]
 
 [tool.ruff]

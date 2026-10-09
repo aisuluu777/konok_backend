@@ -41,20 +41,38 @@ def wrong_code(code: str) -> str:
 async def test_request_code_stores_otp_in_redis(
     client: AsyncClient, db_session: AsyncSession, redis: Redis
 ) -> None:
-    """Step 1 plan: request-code → 202, 6-значный код в Redis с TTL ≈ otp_ttl_sec (300)."""
+    """Step 1 plan: request-code → 202, 6-значный код в Redis с TTL ≈ otp_ttl_sec (300).
+
+    Имитация SMS: тот же код и срок жизни (5 минут) возвращаются в ответе.
+    """
     user, headers = await logged_in(client, db_session)
 
     response = await client.post("/auth/phone/request-code", headers=headers)
 
     assert response.status_code == 202, response.text
-    assert response.json() == {"expires_in": 300}
     key = f"otp:{user.phone}"
     code = await redis.hget(key, "code")
     assert code is not None
     assert len(code) == 6
     assert code.isdigit()
+    assert response.json() == {"code": code, "expires_in": 300}
     ttl = await redis.ttl(key)
     assert 290 <= ttl <= 300
+
+
+async def test_code_from_response_verifies_phone(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    """Step 1 plan: код из ответа request-code подтверждает телефон (имитация SMS)."""
+    _, headers = await logged_in(client, db_session)
+
+    issued = await client.post("/auth/phone/request-code", headers=headers)
+    response = await client.post(
+        "/auth/phone/verify", headers=headers, json={"code": issued.json()["code"]}
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["phone_verified_at"] is not None
 
 
 async def test_request_code_resend_lock(

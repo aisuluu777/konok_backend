@@ -120,6 +120,7 @@ class Booking(Base):
     cancel_reason: Mapped[str | None] = mapped_column(Text)
 
     guests_count: Mapped[int | None] = mapped_column(SmallInteger)
+    # TODO: arrival_time - 13:00
     arrival_time: Mapped[time | None] = mapped_column(Time)
     host_acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     checkin_pin_attempts: Mapped[int] = mapped_column(SmallInteger, server_default="0")

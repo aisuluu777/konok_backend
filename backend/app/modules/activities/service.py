@@ -19,7 +19,7 @@ async def _tags(session: AsyncSession, tag_ids: list[int]) -> list[Tag]:
         raise NotFoundError("Tag not found")
     return tags
 
-
+# TODO: зачем это провекрка всё равно пользователь не может получить чужое занятие, так как в личных кабинетах только свои занятия, а в публичных только активные занятия видимого хозяина. Поэтому проверка на чужое занятие не нужна.
 async def _own_activity(session: AsyncSession, user_id: int, activity_id: int) -> Activity:
     """Чужое занятие — 404, как и несуществующее."""
     activity = await session.get(Activity, activity_id)

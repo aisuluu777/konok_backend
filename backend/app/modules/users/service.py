@@ -146,7 +146,12 @@ return 0
 """
 
 
-async def request_phone_code(session: AsyncSession, redis: Redis, user_id: int) -> int:
+async def request_phone_code(session: AsyncSession, redis: Redis, user_id: int) -> tuple[str, int]:
+    """Выдаёт OTP: возвращает код и срок его жизни в секундах.
+
+    Имитация: реальной отправки SMS нет, поэтому код отдаётся в ответе API.
+    С подключением SMS-провайдера код из ответа убрать.
+    """
     user = await get_user(session, user_id)
     if user.phone_verified_at is not None:
         raise ConflictError("Phone is already verified")
@@ -163,7 +168,7 @@ async def request_phone_code(session: AsyncSession, redis: Redis, user_id: int) 
         pipe.expire(_otp_key(user.phone), ttl_sec)
         await pipe.execute()
     await send_sms(user.phone, f"Konok code: {code}")
-    return ttl_sec
+    return code, ttl_sec
 
 
 async def verify_phone_code(session: AsyncSession, redis: Redis, user_id: int, code: str) -> User:

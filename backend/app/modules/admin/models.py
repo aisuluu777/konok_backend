@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
 
-
+# TODO: Зачем это таблица?
 class Setting(Base):
     """Настройки платформы: ключ — значение строкой, тип знает читающий код."""
 
@@ -29,7 +29,7 @@ class Region(Base):
     id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
     name: Mapped[str] = mapped_column(Text, unique=True)
 
-
+# TODO: таблица тегов была в activities/models.py, но она  относится к админке. Почему в activities/models тоже добавил?
 class Tag(Base):
     """Теги занятий: список ведёт администратор, хозяин выбирает (R-09)."""
 
@@ -38,7 +38,7 @@ class Tag(Base):
     id: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
     name: Mapped[str] = mapped_column(Text, unique=True)
 
-
+# TODO: где поле фото?
 class Place(Base):
     """Справочник мест: управляет admin, читают все (R-37)."""
 
