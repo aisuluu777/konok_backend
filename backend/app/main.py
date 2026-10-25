@@ -1,67 +1,83 @@
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from fastapi import APIRouter, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
-from fastapi import FastAPI
-from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncEngine
+from app.admin import mount_admin
+from app.config import get_settings
+from app.db import SessionFactory
+from app.errors import register_error_handlers
+from app.redis import redis_client
+from app.routers import (
+    activities,
+    auth,
+    bookings,
+    catalog,
+    chat,
+    favorites,
+    hosts,
+    notifications,
+    payments,
+    support,
+    users,
+    vehicles,
+)
+from app.schemas.common import ERROR_RESPONSES
 
-from app.core.db import engine
-from app.core.errors import register_error_handlers
-from app.core.redis import redis_client
-from app.modules.activities.router import router as activities_router
-from app.modules.admin.panel import mount_admin_panel
-from app.modules.admin.router import admin_router, public_router
-from app.modules.bookings.router import router as bookings_router
-from app.modules.chat.router import router as chat_router
-from app.modules.favorites.router import router as favorites_router
-from app.modules.files.router import router as files_router
-from app.modules.guests.router import router as guests_router
-from app.modules.hosts.router import router as hosts_router
-from app.modules.kyc.router import router as kyc_router
-from app.modules.notifications.router import router as notifications_router
-from app.modules.payments.router import router as payments_router
-from app.modules.reviews.router import router as reviews_router
-from app.modules.support.router import router as support_router
-from app.modules.users.router import admin_users_router, auth_router, users_router
-from app.modules.vehicles.router import router as vehicles_router
+DESCRIPTION = """
+API платформы «Конок». Все пути — с префиксом `/api/v1`.
+
+**Авторизация:** `POST /auth/register` → код на email → `POST /auth/verify-email` →
+`access_token` в заголовке `Authorization: Bearer <token>`.
+
+**Ошибки:** `{"error": {"code": "...", "message": "...", "details": ...}}`.
+
+**Списки:** `?limit=&offset=` → `{"items": [...], "total", "limit", "offset"}`.
+"""
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    yield
-    await redis_client.aclose()
-    await engine.dispose()
-
-
-def create_app(*, panel_engine: AsyncEngine = engine, panel_redis: Redis = redis_client) -> FastAPI:
-    """panel_engine / panel_redis — для админ-панели: ей не подходят dependency_overrides."""
-    app = FastAPI(title="Konok API", lifespan=lifespan)
+def create_app() -> FastAPI:
+    app = FastAPI(title="Konok API", version="1.0", description=DESCRIPTION)
     register_error_handlers(app)
+    origins = [o.strip() for o in get_settings().cors_origins.split(",") if o.strip()]
+    app.add_middleware(
+        CORSMiddleware, allow_origins=origins, allow_methods=["*"], allow_headers=["*"]
+    )
 
-    @app.get("/health")
-    async def health() -> dict[str, str]:
-        return {"status": "ok"}
+    @app.get("/health", tags=["health"])
+    async def health() -> JSONResponse:
+        """ok, если доступны PostgreSQL и Redis; иначе 503."""
+        try:
+            async with SessionFactory() as session:
+                await session.execute(text("SELECT 1"))
+            await redis_client.ping()
+        except Exception:
+            return JSONResponse({"status": "error"}, status_code=503)
+        return JSONResponse({"status": "ok"})
 
-    # Роутеры модулей подключаются здесь по мере реализации шагов.
-    app.include_router(auth_router)
-    app.include_router(users_router)
-    app.include_router(admin_users_router)
-    app.include_router(public_router)
-    app.include_router(admin_router)
-    app.include_router(notifications_router)
-    app.include_router(files_router)
-    app.include_router(kyc_router)
-    app.include_router(guests_router)
-    app.include_router(hosts_router)
-    app.include_router(activities_router)
-    app.include_router(vehicles_router)
-    app.include_router(bookings_router)
-    app.include_router(payments_router)
-    app.include_router(reviews_router)
-    app.include_router(chat_router)
-    app.include_router(support_router)
-    app.include_router(favorites_router)
-    mount_admin_panel(app, panel_engine, panel_redis)
+    api = APIRouter(prefix="/api/v1", responses=ERROR_RESPONSES)
+    for module in (
+        auth,
+        users,
+        catalog,
+        hosts,
+        activities,
+        vehicles,
+        bookings,
+        payments,
+        favorites,
+        chat,
+        support,
+        notifications,
+    ):
+        api.include_router(module.router)
+    app.include_router(api)
+
+    media = get_settings().storage_dir / "public"
+    media.mkdir(parents=True, exist_ok=True)
+    app.mount("/media", StaticFiles(directory=media), name="media")
+    mount_admin(app, SessionFactory)
     return app
 
 
